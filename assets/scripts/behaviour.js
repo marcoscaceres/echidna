@@ -53,7 +53,6 @@ $(document).ready(function() {
             $('#submitForm').prop('action'),
             {url: $('#url').prop('value'),
              decision: $('#decision').prop('value'),
-             isManifest: $('#isManifest').prop('checked'),
              token: $('#token').prop('value')},
             function(data, foo, xhr) {
                 if (200 === xhr.status) {
