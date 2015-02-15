@@ -234,18 +234,30 @@ function orchestrate(spec, token) {
       });
   }
 
-  function runThirdPartyChecker(httpLocation) {
+  function runThirdPartyChecker(httpLocation, spec) {
+    spec.jobs['third-party-checker'].status = 'pending';
+
     return ThirdPartyChecker.check(httpLocation)
       .then(function (extResources) {
         if (extResources.length === 0) {
-          console.log('ThirdPartyChecker SUCCESS');
+          spec.jobs['third-party-checker'].status = 'ok';
+          spec.history = spec.history.add('The document passed the third party checker.');
+
           return Promise.resolve(extResources);
         }
         else {
-          console.log('ThirdPartyChecker FAILURE');
-          console.log(extResources);
+          spec.history = spec.history.add('The document contains non-authorized resources');
+          spec.jobs['third-party-checker'].status = 'failure';
+          spec.jobs['third-party-checker'].errors = extResources;
+
           return Promise.reject(new Error('There are external resources in this document.'));
         }
+      }).catch(function (error) {
+        spec.jobs['third-party-checker'].status = 'error';
+        spec.jobs['third-party-checker'].errors.push(err.toString());
+        spec.history = spec.history.add('An error occurred while running the Third Party Resources Checker.');
+
+        return Promise.reject(error);
       });
   }
 
@@ -307,7 +319,7 @@ function orchestrate(spec, token) {
     .then(function (report) {
       return runTokenChecker(report, spec.url, spec);
     }).then(function () {
-      return runThirdPartyChecker(httpLocation);
+      return runThirdPartyChecker(httpLocation, spec);
     })
     .then(function () {
       return runPublisher(specberusReport);
@@ -339,10 +351,6 @@ function orchestrate(spec, token) {
     spec.jobs['retrieve-resources'].status = 'ok';
     spec.history = spec.history.add('The file has been retrieved.');
 
-        spec.jobs['third-party-checker'].status = 'pending';
-
-          spec.jobs['third-party-checker'].status = 'ok';
-          spec.history = spec.history.add('The document passed the third party checker.');
           spec.jobs['publish'].status = 'pending';
 
             spec.jobs['publish'].status = 'ok';
@@ -370,13 +378,6 @@ function orchestrate(spec, token) {
             spec.jobs['publish'].status = 'error';
             spec.jobs['publish'].errors.push(err.toString());
             spec.history = spec.history.add('The document could not be published: ' + err.message);
-
-        spec.history = spec.history.add('The document contains non-authorized resources');
-        spec.jobs['third-party-checker'].status = 'failure';
-        spec.jobs['third-party-checker'].errors = extResources;
-
-        spec.jobs['third-party-checker'].status = 'error';
-        spec.jobs['third-party-checker'].errors.push(err.toString());
 
     spec.history = spec.history.add('The document could not be retrieved.');
     spec.jobs['retrieve-resources'].status = 'error';
