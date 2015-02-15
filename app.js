@@ -254,7 +254,7 @@ function orchestrate(spec, token) {
         }
       }).catch(function (error) {
         spec.jobs['third-party-checker'].status = 'error';
-        spec.jobs['third-party-checker'].errors.push(err.toString());
+        spec.jobs['third-party-checker'].errors.push(error.toString());
         spec.history = spec.history.add('An error occurred while running the Third Party Resources Checker.');
 
         return Promise.reject(error);
@@ -285,11 +285,12 @@ function orchestrate(spec, token) {
               return error.message;
             }));
 
-          } return Promise.reject(new Error('There was a problem with the publication system.'));
+            return Promise.reject(new Error('There was a problem with the publication system.'));
+          }
         }).catch(function (error) {
           spec.jobs['publish'].status = 'error';
-          spec.jobs['publish'].errors.push(err.toString());
-          spec.history = spec.history.add('The document could not be published: ' + err.message);
+          spec.jobs['publish'].errors.push(error.toString());
+          spec.history = spec.history.add('The document could not be published: ' + error.message);
 
           return Promise.reject(error);
         });
