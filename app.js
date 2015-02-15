@@ -261,7 +261,9 @@ function orchestrate(spec, token) {
       });
   }
 
-  function runPublisher(specberusReport) {
+  function runPublisher(specberusReport, spec) {
+    spec.jobs['publish'].status = 'pending';
+
     return specberusReport.then(function (report) {
       var pubsystemService = new JsonHttpService(
         global.W3C_PUBSYSTEM_URL,
@@ -272,13 +274,24 @@ function orchestrate(spec, token) {
       return new Publisher(pubsystemService).publish(report.metadata)
         .then(function (errors) {
           if (errors.isEmpty()) {
-            console.log('Publisher SUCCESS');
+            spec.jobs['publish'].status = 'ok';
+
             return Promise.resolve(errors);
           }
           else {
-            console.log('Publisher FAILED');
-            console.log(errors.toJSON());
+            spec.jobs['publish'].status = 'failure';
+            spec.jobs['publish'].errors = errors;
+            spec.history = spec.history.add('The document could not be published: ' + errors.map(function (error) {
+              return error.message;
+            }));
+
           } return Promise.reject(new Error('There was a problem with the publication system.'));
+        }).catch(function (error) {
+          spec.jobs['publish'].status = 'error';
+          spec.jobs['publish'].errors.push(err.toString());
+          spec.history = spec.history.add('The document could not be published: ' + err.message);
+
+          return Promise.reject(error);
         });
     });
   }
@@ -322,7 +335,7 @@ function orchestrate(spec, token) {
       return runThirdPartyChecker(httpLocation, spec);
     })
     .then(function () {
-      return runPublisher(specberusReport);
+      return runPublisher(specberusReport, spec);
     })
     .then(function () {
       return runTrInstaller(specberusReport, tempLocation);
@@ -351,9 +364,6 @@ function orchestrate(spec, token) {
     spec.jobs['retrieve-resources'].status = 'ok';
     spec.history = spec.history.add('The file has been retrieved.');
 
-          spec.jobs['publish'].status = 'pending';
-
-            spec.jobs['publish'].status = 'ok';
             spec.jobs['tr-install'].status = 'pending';
 
               spec.jobs['tr-install'].status = 'ok';
@@ -368,16 +378,6 @@ function orchestrate(spec, token) {
 
               spec.jobs['tr-install'].status = 'error';
               spec.jobs['tr-install'].errors.push(err.toString());
-
-            spec.jobs['publish'].status = 'failure';
-            spec.jobs['publish'].errors = errors;
-            spec.history = spec.history.add('The document could not be published: ' + errors.map(function (error) {
-              return error.message;
-            }));
-
-            spec.jobs['publish'].status = 'error';
-            spec.jobs['publish'].errors.push(err.toString());
-            spec.history = spec.history.add('The document could not be published: ' + err.message);
 
     spec.history = spec.history.add('The document could not be retrieved.');
     spec.jobs['retrieve-resources'].status = 'error';
